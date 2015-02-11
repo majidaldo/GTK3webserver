@@ -1,8 +1,6 @@
 #!/bin/bash
 
-#supply a 'display' number
-# for example for port 8080 use 0
-# 8090 for 10 ..etc.
+#supply a 'display' number which is the same as the port number
 
 kill_child_processes() {
     isTopmost=$1
