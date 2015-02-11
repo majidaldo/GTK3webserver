@@ -9,6 +9,8 @@ import matplotlib.pyplot as pl
 
 pl.ion()#ioff()#.ion()
 
+from time import sleep
+
 """ bayesian optimizer game  """
 
 
@@ -180,6 +182,7 @@ def game():
         init_all({'rf':{'seed':stt}})
         nc=play(cp)
 
+        pl.plot([Xtest[ixmax]],[np.max(yall)],'r^',ms=12)
         if nh<nc:
             w='You win this time, human!'
             printer(w+' '
@@ -192,11 +195,11 @@ def game():
             +'. (click to continue)')
         else:# nh==nc:
             printer('Tie! You both took '+str(nh)+' tries. (click to continue)')
-        pl.plot([Xtest[ixmax]],[np.max(yall)],'r^',ms=12)
+        
         pl.plot(Xtest[cp.my_guesses],yall[cp.my_guesses],'gx',ms=8,mew=1)
         pl.plot(Xtest,yall,c='black')
         while ( (pl.waitforbuttonpress(timeout=-1) !=False) ): #false is mouse
-            continue
+            sleep(.1); continue
         scores['h']+=nh
         scores['c']+=nc
         
@@ -210,7 +213,7 @@ def game():
                 +' Computer= '+format((scores['c'])/float(i+1),'.1f')\
                 +' (click to continue)')
         while ( (pl.waitforbuttonpress(timeout=-1) !=False) ): #false is mouse
-            continue
+            sleep(.1); continue
 
 
 class player(object):
@@ -281,7 +284,7 @@ class human(player):
             try:
                 if ( self.guesschk(self.last_click)==True ): break
             except: pass
-            else: continue
+            else: sleep(.1); continue
         igs=self.last_click
         self.my_guesses.append(igs)
         pl.plot([Xtest[igs]],[yall[igs]],'bo'); pl.draw()
