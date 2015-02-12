@@ -2,19 +2,44 @@
 .. and to minimize bash scripting ugggh
 
 usage:
-#display.add(8080)
-display.app('gedit',8080) #where gedit is a gtk3 app
+#displynum=display.add()
+#display.app('gedit',displaynum) #where gedit is a gtk3 app
 
 """
 
 import os
 import subprocess
 from collections import defaultdict
+from time import sleep
+import socket
 
-def display_is_port(display):
-    port=display
-    return port
-d2pf=display_is_port
+def get_openport():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('',0))
+    return s.getsockname()[1]
+
+class sequence():
+    dc=0
+    @staticmethod
+    def getdisplay(self):
+        self.dc+=1 ;
+        return self.dc
+    @staticmethod
+    def __call__(self):
+        return self.getdisplay(self)
+
+def friendly_display(port,begin=8000):
+    """for wehn you want some 'web' ports"""
+    ret= port-begin
+    if ret < 0 or port<0:
+        raise ValueError('neg values')
+    return ret
+def display_is_port(port):
+    display=port
+    return display
+#functions need to be one to one mappings
+p2df=lambda p: sequence.__call__(sequence)
+#display_is_port#friendly_display# 
 class keydefaultdict(defaultdict):
     def __missing__(self, key):
         if self.default_factory is None:
@@ -22,33 +47,55 @@ class keydefaultdict(defaultdict):
         else:
             ret = self[key] = self.default_factory(key)
             return ret
-display2port=keydefaultdict(d2pf)
 
+port2display={}
+display2port={}
+class displaydict(defaultdict):
+    #adding issues are covvered by add()
+    def removemapping(self,display):
+        port2display.pop(display2port.pop(display))
+    def __delitem__(self, display):
+        super(displaydict, self).__delitem__(display)
+        self.removemapping(display)
+    def pop(self, display):
+        super(displaydict, self).pop(display)
+        self.removemapping(display)
 #procs assoc with each display
-running_displays=defaultdict(list) 
+running_displays=displaydict(list) 
 
-from time import sleep
-def add(display,block=True):
+#lesson learned:
+#def add(port,block=True) not a good idea to specify a port
+def add(block=True):
+    port=get_openport()
     remove_zombies()
-    """runs the html5 part of the app returning the port number
+    """runs the html5 part of the app returning the display number
     blocks until the dispaly server is up by default"""
-    port=display2port.default_factory(display)
+    display=p2df(port)
     if display in running_displays:
-        raise ValueError('display server already running')
+        raise KeyError('display server already running')
     else:
-        if isport_running(port) is True:
-            raise Exception("can't get port "+str(port))
-        running_displays[display].append(subprocess.Popen(
-        ['./display.sh'
-        ,str(display),str(port)]
-        #,preexec_fn=os.setsid
-        ))
+        if isport_openable(port) is True:
+            raise ValueError("can't get port "+str(port))
 
+    try:
+        p=subprocess.Popen(['./display.sh'
+                           ,str(display),str(port)]
+        #,preexec_fn=os.setsid
+        )
+    except:
+        raise
     #block until 'app' is ready on the port
     if block==True:
-        while ( isport_running(port) is not True ):
+        while ( isport_openable(port) is not True ):
             sleep(.1); continue
-    return display2port[display]
+    #registrations
+    running_displays[display].append(p)
+    port2display[port]=display;
+    display2port[display]=port
+    # port->display should be 1 to 1 mapping
+    if len(display2port) != len(port2display):
+        raise Exception('display and port numbers are not 1-to-1')
+    return display
 
 def remove_zombies():
     delthese=[]
@@ -57,16 +104,16 @@ def remove_zombies():
             if aproc.poll() is None: continue# running
             else: delthese.append( (adisplay,an) )
     for adisplay,an in delthese:
-        running_displays[adisplay].pop(an)
+        #in case empty list
+        try: running_displays[adisplay].pop(an)
+        except: pass
 
 def app(cmd,display,**kwargs):
-    """runs a gtk3 prog on display. if the display is not
-    running it will create a display"""
+    """runs a gtk3 prog on display. """
     remove_zombies()
-    if display not in running_displays:
-        add(display)
-    #    raise ValueError('display does not exist')
-    
+    if (display) not in running_displays:
+        raise ValueError('display does not exist')
+
     #cmd_args=list(cmd_args)
     #kwargs['preexec_fn']=os.setpgid
     sp=subprocess.Popen(['./runon_display.sh',cmd,str(display)]
@@ -74,18 +121,23 @@ def app(cmd,display,**kwargs):
     running_displays[display].append(sp)
     return sp
 
-import socket
-def isport_running(port):
+
+def isport_openable(port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    cr=s.connect_ex(('127.0.0.1', port))
-    if cr==0: return True
-    else: return cr
+    try:
+        s.bind(('127.0.0.1',port)) #if can bind then not busy
+        s.close()
+        return False
+    except: return True
+    # cr=s.connect_ex(('127.0.0.1', port))
+    # if cr==0: return True
+    # else: return cr
 
 import signal
 def stop(display,signal=signal.SIGINT):
     """stops display and everything running on it"""
     if display not in running_displays:
-        raise ValueError('no display #'+str(display)+'to kill')
+        raise KeyError('no display #'+str(display)+' to kill')
     #os.killpg(p.pid, signal.SIGTERM)
     proclist= running_displays[display]
     for p in reversed(proclist):
@@ -96,6 +148,6 @@ def stop(display,signal=signal.SIGINT):
     remove_zombies()
 
 def kill_all():
-    """kills all display apps on the server forecefully"""
+    """kills all display apps on the server forcefully"""
     for ad in running_displays.keys():
         stop(ad,signal=signal.SIGKILL)
