@@ -1,17 +1,38 @@
+#this could be in a repo on its own
+
 """manages GTK3 broadwayd displays
 .. and to minimize bash scripting ugggh
 
 usage:
-#displynum=display.add()
-#display.app('gedit',displaynum) #where gedit is a gtk3 app
+>displynum, port =display.add()
+>display.app('gedit',displaynum) #where gedit is a gtk3 app
 
+
+you may want to set the limits after import
+>import display
+>display.DisplayLimit=10
 """
 
+
 import os
+import atexit
 import subprocess
 from collections import defaultdict
 from time import sleep
 import socket
+
+class LimitError(Exception): val=None; pass
+class DisplayLimit(LimitError):
+    """a limit to the number of displays"""
+    val=3;
+    pass
+class ApplicationLimit(LimitError):
+    """a limit to the number of applications per display"""
+    val=3
+    pass
+
+#should program onappstart onappclose
+#todo capture stdio on procs
 
 def get_openport():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -34,6 +55,7 @@ def friendly_display(port,begin=8000):
     if ret < 0 or port<0:
         raise ValueError('neg values')
     return ret
+
 def display_is_port(port):
     display=port
     return display
@@ -65,9 +87,12 @@ running_displays=displaydict(list)
 
 #lesson learned:
 #def add(port,block=True) not a good idea to specify a port
-def add(block=True):
-    port=get_openport()
+def add(portgetter=get_openport
+        ,block=True):#don't see a reason to not block
     remove_zombies()
+    if len(running_displays)==DisplayLimit.val:
+        raise DisplayLimit(DisplayLimit.val)
+    port=portgetter()
     """runs the html5 part of the app returning the display number
     blocks until the dispaly server is up by default"""
     display=p2df(port)
@@ -83,24 +108,27 @@ def add(block=True):
         #,preexec_fn=os.setsid
         )
     except:
-        raise
+        raise Exception("couldn't start display")
     #block until 'app' is ready on the port
     if block==True:
         while ( isport_openable(port) is not True ):
             sleep(.1); continue
     #registrations
-    running_displays[display].append(p)
+    running_displays[display].append(p) #the only reason it's a...
+    #...default dict.. do i really need defaultdict?
     port2display[port]=display;
     display2port[display]=port
     # port->display should be 1 to 1 mapping
     if len(display2port) != len(port2display):
         raise Exception('display and port numbers are not 1-to-1')
-    return display
+    return display, port
 
 def remove_zombies():
+    #the not immediate
     delthese=[]
     for adisplay in running_displays:
         for an,aproc in enumerate(running_displays[adisplay]):
+            if an==0:continue  #skip the broadway proc
             if aproc.poll() is None: continue# running
             else: delthese.append( (adisplay,an) )
     for adisplay,an in delthese:
@@ -108,13 +136,15 @@ def remove_zombies():
         try: running_displays[adisplay].pop(an)
         except: pass
 
+#what happens when the app spawns a window or another proc?
+#on multiple gedits  only the first one is alive
 def app(cmd,display,**kwargs):
     """runs a gtk3 prog on display. """
-    remove_zombies()
     if (display) not in running_displays:
         raise ValueError('display does not exist')
-
-    #cmd_args=list(cmd_args)
+    remove_zombies()
+    if (len(running_displays[display])-1)==ApplicationLimit.val:
+        raise ApplicationLimit(ApplicationLimit.val)
     #kwargs['preexec_fn']=os.setpgid
     sp=subprocess.Popen(['./runon_display.sh',cmd,str(display)]
                         ,**kwargs)
@@ -147,7 +177,10 @@ def stop(display,signal=signal.SIGINT):
     running_displays.pop(display)
     remove_zombies()
 
+	
 def kill_all():
     """kills all display apps on the server forcefully"""
     for ad in running_displays.keys():
         stop(ad,signal=signal.SIGKILL)
+
+atexit.register(kill_all)
