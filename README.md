@@ -1,2 +1,3 @@
 # boweb
-attempt at making a scientific matplotlib 'app' on the web
+this code serves up any gtk3 app through a browser. but it started as a way to webhost my interactive matplotlib demo.
+
