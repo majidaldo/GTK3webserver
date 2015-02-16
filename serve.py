@@ -6,22 +6,28 @@ import atexit
 #from time import sleep
 from random import getrandbits
 
-polltime= 0*3600 +0*60  +10  # seconds chks usr active
-responsetime= 5 #seconds response time given to usr
+#user
+user_polltime= 0*3600 +0*60  +60  # seconds chks usr active
+user_responsetime= 60 #seconds response time given to usr
+#system
+responsetime=10
 
 class alive(tornado.websocket.WebSocketHandler):
     clients={} # id:this_instance . these are the the ids
     #..that were recd. not necessarily the one given on the
     #http request
     def check_origin(self,origin):return True #for ver 4
-    
+
+    def closeif_noid(self):
+        if self.id is None: self.close()
+
     def open(self):
-        self.id=None
+        self.id=None 
         self.dueclose=True
         self.pt=tornado.ioloop.PeriodicCallback(self.poll
-             ,1000*( polltime ));
+             ,1000*( user_polltime ));
         self.pt.start() # PollTimer
-        #iolp.call_later(10, self.closeif_noid)
+        iolp.call_later(responsetime, self.closeif_noid)
         pass
 
     def closeif_noid(self):
@@ -54,7 +60,7 @@ class alive(tornado.websocket.WebSocketHandler):
         self.pt.stop()
         self.write_message(u"confirmcontinue")
         #response timer
-        self.rt=iolp.call_later(responsetime
+        self.rt=iolp.call_later(user_responsetime
                 ,self.closeifdue
                 )
 
@@ -129,7 +135,7 @@ class DisplayHandler(tornado.web.RequestHandler):
         #display.get_openport
         #problem: if browser didnt get back?
         #tst by corrupting html
-        display.app('gedit',self.display_num)
+        display.app('python bo.py',self.display_num)
         id2displaynum[self.id]=self.display_num
         hn=hostname
         #todo use tornado templates?
@@ -143,19 +149,21 @@ class DisplayHandler(tornado.web.RequestHandler):
                  #title
         #need that last slash in url localhost:8080/    
         self.write((self.html)) #no need for unicode?
-        self.chkid=tornado.ioloop.PeriodicCallback(           self.chk_id,1000)
-        self.chkid.start()
+        self.chkid=iolp.call_later(5,self.chk_id)
+        #self.chkid=tornado.ioloop.PeriodicCallback(\
+        #                               self.chk_id,100)
+        #self.chkid.start()
         
     def chk_id(self):#after a delay 
         """chks to see if reqid given back"""
-        self.tryn+=1
-        if self.tryn>3: self.chkid.stop(); return
+        #self.tryn+=1
+        #if self.tryn>3: self.chkid.stop(); return
         if self.id not in alive.clients:
             display.stop(self.display_num);
-            self.chkid.stop()
-            id2displaynum.pop(self.id)
-        else: # reqid came back
-            self.chkid.stop()
+            #self.chkid.stop()
+            #id2displaynum.pop(self.id)
+        else: # correct reqid came back
+            #self.chkid.stop()
             self.clients.pop(self.id)
             display_handlers.pop(self.id)
 
@@ -177,7 +185,12 @@ application = tornado.web.Application([
 ,debug=True
 )
 
-def printstuff(stuff=[id2display]):
+def printstuff():
+    stuff=[id2displaynum
+	,display_handlers
+	,alive.clients
+	,DisplayHandler.clients
+	]
     for at in stuff: print(at)
 
 atexit.register( display.kill_all )
@@ -186,6 +199,6 @@ if __name__ == "__main__":
     lp=8888
     application.listen(lp)
     iolp=tornado.ioloop.IOLoop.instance()
-    tornado.ioloop.PeriodicCallback(printstuff,10*1000)
+    tornado.ioloop.PeriodicCallback(printstuff,2*1000)
     iolp.start()
     

@@ -2712,14 +2712,14 @@ function connect()
 	var wsalive = new WebSocket(loc.substr(0, loc.lastIndexOf(':')) + ":$APP_PRT/wsalive");
 	
 	wsalive.onopen = function() {
-	//wsalive.send("REQ_ID=$REQ_ID")
+	wsalive.send("REQ_ID=$REQ_ID")
 	};
 	wsalive.onmessage = function (evt) {
    var r= confirm("confirm continue in 10 seconds?");
    if (r==false) { wsalive.close() ; }
    else { wsalive.send("pleasedontclose")
    };
-   wsalive.onclose= function () {ws.onclose()}
+   //wsalive.onclose= function () {ws.onclose()}
 };
 
 
