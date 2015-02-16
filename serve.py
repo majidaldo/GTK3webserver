@@ -8,9 +8,9 @@ from random import getrandbits
 
 #user
 user_polltime= 0*3600 +0*60  +60  # seconds chks usr active
-user_responsetime= 60 #seconds response time given to usr
+user_responsetime= 10 #seconds response time given to usr
 #system
-responsetime=10
+responsetime=5
 
 class alive(tornado.websocket.WebSocketHandler):
     clients={} # id:this_instance . these are the the ids
