@@ -6,7 +6,7 @@ import atexit
 #from time import sleep
 
 #should have used more obj oriented approach
-#
+#todo implement reset btn
 #todo dont ask for confirmation if user is interacting
 
 import display
@@ -48,7 +48,7 @@ display_handlers={} # id: display handlers
 #for devel make the following times short and debug=True
 
 #user
-user_polltime= 0*3600 +0*60  +60  # seconds chks usr active
+user_polltime= 0*3600 +5*60  +0  # seconds chks usr active
 user_responsetime= 10 #seconds response time given to usr
 #system
 responsetime=5 #seconds. user should come back with a response
@@ -205,11 +205,24 @@ class DisplayHandler(tornado.web.RequestHandler):
     def morehousekeeping(self):
         try: self.clients.pop(self.id)
         except: pass
+        try: display_handlers.pop(self.id)
+        except: pass
     def on_finish(self):#pass#i dont think the obj persists
         #id2displaynum.pop(self.id)
         #self.clients.pop(self.id)
         #display_handlers.pop(self.id)
         self.hk=iolp.call_later(10,self.morehousekeeping)
+
+
+
+
+def make_DisplayHandler(display_spec):
+    class dh(DisplayHandler): clients={} ; 
+    for aspec in display_spec:
+        if aspec != 'kwargs':
+            setattr(dh, aspec, display_spec[aspec])
+    return dh
+
 
 
 apps={'bo':  {'cmd':'python bo.py'},
@@ -230,36 +243,11 @@ display_specs={
                 }
 }
 
-
-def make_DisplayHandler(display_spec):
-    class dh(DisplayHandler): clients={} ; 
-    for aspec in display_spec:
-        if aspec != 'kwargs':
-            setattr(dh, aspec, display_spec[aspec])
-    return dh
-
 dh_classes=dict(
 [(ads, make_DisplayHandler(display_specs[ads]))
 for ads in display_specs])
 
 
-
-from collections import defaultdict as dd
-application = tornado.web.Application([
-    (r"/", DisplayHandler) 
-    ,(r'/wsalive',alive) ]
-   +[(r'/'+adhc, dh_classes[adhc]
-      , dd(lambda:{},display_specs[adhc])['kwargs'] )
-      # {} if no kwargs available  
-      for adhc in dh_classes]
-
-,debug=True
-)
-
-#another check todo
-#peridically. it seems alive.clients is the best registration
-#so just take out all display handlers not in alive.clients
-#..the stuff in prinstuff
 
 
 def printstuff():
@@ -269,21 +257,34 @@ def printstuff():
     ,'display_handlers':display_handlers
     ,'alive.clients':alive.clients
     ,'DisplayHandler.clients':DisplayHandler.clients #only if..
-	#...requesting root
+    #...requesting root
     ,'boDisplayHnadler':dh_classes['bo'].clients
     }
     for at in stuff: print(at,stuff[at])
     print("")
-#=
 
-# def housekeeper():
-    # for 
 
 atexit.register( display.kill_all )
 
 if __name__ == "__main__":
-    lp=8888
+    lp=8888 #listening port
+    debug=True
+
+    from collections import defaultdict as dd
+    application = tornado.web.Application([
+        (r"/", DisplayHandler) 
+        ,(r'/wsalive',alive) ]
+       +[(r'/'+adhc, dh_classes[adhc]
+          , dd(lambda:{},display_specs[adhc])['kwargs'] )
+          # {} if no kwargs available  
+          for adhc in dh_classes]
+
+    ,debug=debug
+    )
+
+
     application.listen(lp)
     iolp=tornado.ioloop.IOLoop.instance()
-    tornado.ioloop.PeriodicCallback(printstuff,5*1000).start()
+    if debug is True:
+        tornado.ioloop.PeriodicCallback(printstuff,5*1000).start()
     iolp.start()

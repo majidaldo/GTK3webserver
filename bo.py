@@ -168,7 +168,7 @@ def game():
     printer=lambda txt:pt.printt(txt)
 
      
-    scores={'h':0,'c':0}
+    scores={'h':0,'c':0} #well...number of tries
     
     for i in xrange(999):
         stt=np.random.randint(1,123456789)
@@ -207,7 +207,7 @@ def game():
         if   scores['h']<scores['c']: ptr=' <-- '
         elif scores['h']>scores['c']: ptr=' --> '
         else:                         ptr=' <-> '
-        printer('Average scores after '+str(1+i)+' games: '\
+        printer('Avg. num. of tries after '+str(1+i)+' games: '\
                 +'You= '+       format((scores['h'])/float(i+1),'.1f')\
                 +ptr
                 +' Computer= '+format((scores['c'])/float(i+1),'.1f')\
