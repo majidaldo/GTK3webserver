@@ -6,6 +6,8 @@ import atexit
 #from time import sleep
 
 #should have used more obj oriented approach
+#
+#todo dont ask for confirmation if user is interacting
 
 import display
 display.port2display_function=display.sequence #might make ...
@@ -60,9 +62,6 @@ class alive(tornado.websocket.WebSocketHandler):
     #http request
     def check_origin(self,origin): return True #for ver 4
 
-    def closeif_noid(self):
-        if self.id is None: self.close()
-
     def open(self):
         self.id=None 
         self.dueclose=True
@@ -73,6 +72,13 @@ class alive(tornado.websocket.WebSocketHandler):
         pass
 
     def closeif_noid(self):
+        #also some housekeeping
+        if self.id in display_handlers:
+            for adisplayclassname in dh_classes:
+                if self.id in dh_classes[adisplayclassname].clients:
+                    dh_classes[adisplayclassname].clients\
+                    .pop(self.id)
+            display_handlers.pop(self.id)
         if self.id is None: self.close()
 
     def on_message(self, message):
@@ -115,6 +121,8 @@ class alive(tornado.websocket.WebSocketHandler):
         except: pass
         try: id2displaynum.pop(self.id)
         except: pass # warning: invalid reqid recvd or None
+        try: display_handlers.pop(self.id)
+        except:pass
         #print("WebSocket closed2")
 
 
@@ -161,9 +169,9 @@ class DisplayHandler(tornado.web.RequestHandler):
                  #todo replace response time
                  # makint the timer for reset btn
                  #title
-        #need that last slash in url localhost:8080/    
-        self.write((self.html)) #no need for unicode?
+        #need that last slash in url localhost:8080/ 
         self.chkid=iolp.call_later(5,self.chk_id)
+        self.write((self.html)) #no need for unicode?
         #self.chkid=tornado.ioloop.PeriodicCallback(\
         #                               self.chk_id,100)
         #self.chkid.start()
@@ -174,18 +182,34 @@ class DisplayHandler(tornado.web.RequestHandler):
         #if self.tryn>3: self.chkid.stop(); return
         if self.id not in alive.clients:
             display.stop(self.display_num);
-            id2displaynum.pop(self.id)
+            try: id2displaynum.pop(self.id)
+            except: pass
+            display_handlers.pop(self.id)
+            self.clients.pop(self.id)
             #self.chkid.stop()
-        else: # correct reqid came back
+        else: #pass # correct reqid came back
             #self.chkid.stop()
             self.clients.pop(self.id)
             display_handlers.pop(self.id)
+        if self.id not in alive.clients: 
+            #some more housekeeping
+            try: self.clients.pop(self.id)
+            except: pass
+            try: display_handlers.pop(self.id)
+            except: pass
+            try: id2displaynum.pop(self.id)
+            except: pass
 
     #def on_validid(self):pass 
 
-    
-    def on_finish(self):pass#i dont think the obj persists
-
+    def morehousekeeping(self):
+        try: self.clients.pop(self.id)
+        except: pass
+    def on_finish(self):#pass#i dont think the obj persists
+        #id2displaynum.pop(self.id)
+        #self.clients.pop(self.id)
+        #display_handlers.pop(self.id)
+        self.hk=iolp.call_later(10,self.morehousekeeping)
 
 
 apps={'bo':  {'cmd':'python bo.py'},
@@ -208,7 +232,7 @@ display_specs={
 
 
 def make_DisplayHandler(display_spec):
-    class dh(DisplayHandler): pass
+    class dh(DisplayHandler): clients={} ; 
     for aspec in display_spec:
         if aspec != 'kwargs':
             setattr(dh, aspec, display_spec[aspec])
@@ -240,11 +264,13 @@ application = tornado.web.Application([
 
 def printstuff():
     stuff={
-	 'displays': display.display2port
+     'displays': display.display2port
      ,'id2displaynum':id2displaynum
     ,'display_handlers':display_handlers
     ,'alive.clients':alive.clients
-    ,'DisplayHandler.clients':DisplayHandler.clients
+    ,'DisplayHandler.clients':DisplayHandler.clients #only if..
+	#...requesting root
+    ,'boDisplayHnadler':dh_classes['bo'].clients
     }
     for at in stuff: print(at,stuff[at])
     print("")
