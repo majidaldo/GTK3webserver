@@ -13,7 +13,6 @@ you may want to set the limits after import
 >display.DisplayLimit=10
 """
 
-
 import os
 import atexit
 import subprocess
@@ -21,14 +20,17 @@ from collections import defaultdict
 from time import sleep
 import socket
 
+port2display={}
+display2port={}
+
 class LimitError(Exception): val=None; pass
 class DisplayLimit(LimitError):
     """a limit to the number of displays"""
-    val=3;
+    val=10;
     pass
 class ApplicationLimit(LimitError):
     """a limit to the number of applications per display"""
-    val=3
+    val=10
     pass
 
 #should program onappstart onappclose
@@ -39,7 +41,9 @@ def get_openport():
     s.bind(('',0))
     return s.getsockname()[1]
 
-class sequence():
+
+class sequenceg(): #should have used a generator but cool to...
+    #..hack classes
     dc=0
     @staticmethod
     def getdisplay(self):
@@ -48,6 +52,7 @@ class sequence():
     @staticmethod
     def __call__(self):
         return self.getdisplay(self)
+sequence=lambda p: sequenceg.__call__(sequenceg)
 
 def friendly_display(port,begin=8000):
     """for wehn you want some 'web' ports"""
@@ -59,19 +64,23 @@ def friendly_display(port,begin=8000):
 def display_is_port(port):
     display=port
     return display
-#functions need to be one to one mappings
-p2df=lambda p: sequence.__call__(sequence)
-#display_is_port#friendly_display# 
-class keydefaultdict(defaultdict):
-    def __missing__(self, key):
-        if self.default_factory is None:
-            raise KeyError( key )
-        else:
-            ret = self[key] = self.default_factory(key)
-            return ret
+#functions need to be one to one mappings bw out and in
 
-port2display={}
-display2port={}
+#port2display_function
+p2df=sequence
+port2display_function=p2df #don't use the port2dispaly_func ...
+#... in the code
+
+#display_is_port#friendly_display# 
+# class keydefaultdict(defaultdict):
+    # def __missing__(self, key):
+        # if self.default_factory is None:
+            # raise KeyError( key )
+        # else:
+            # ret = self[key] = self.default_factory(key)
+            # return ret
+
+
 class displaydict(defaultdict):
     #adding issues are covvered by add()
     def removemapping(self,display):
@@ -89,10 +98,10 @@ running_displays=displaydict(list)
 #def add(port,block=True) not a good idea to specify a port
 def add(portgetter=get_openport
         ,block=True):#don't see a reason to not block
-    remove_zombies()
+    remove_zombies(); 
     if len(running_displays)==DisplayLimit.val:
         raise DisplayLimit(DisplayLimit.val)
-    port=portgetter()
+    port=portgetter() #not safe. need to reserve port
     """runs the html5 part of the app returning the display number
     blocks until the dispaly server is up by default"""
     display=p2df(port)
@@ -103,15 +112,22 @@ def add(portgetter=get_openport
             raise ValueError("can't get port "+str(port))
 
     try:
-        p=subprocess.Popen(['./display.sh'
+        p=subprocess.Popen(['./start_display.sh'
                            ,str(display),str(port)]
         #,preexec_fn=os.setsid
         )
-    except:
+    except: #todo: problem: broadwayd does not exit if it
+      #cant get the port. it gives back:
+      #"Can't listen: Error binding to address: Address already in use"
+      #dont' p.wait
         raise Exception("couldn't start display")
     #block until 'app' is ready on the port
-    if block==True:
-        while ( isport_openable(port) is not True ):
+    if block==True:#todo if port given not openable
+        tries=0
+        while ( (isport_openable(port) is not True) ):
+            tries+=1 ; #sometimes it gets stuck here if
+            #rapid requests
+            if tries>10: return add(portgetter,block) #not nice
             sleep(.1); continue
     #registrations
     running_displays[display].append(p) #the only reason it's a...
@@ -146,7 +162,7 @@ def app(cmd,display,**kwargs):
     if (len(running_displays[display])-1)==ApplicationLimit.val:
         raise ApplicationLimit(ApplicationLimit.val)
     #kwargs['preexec_fn']=os.setpgid
-    sp=subprocess.Popen(['./runon_display.sh',cmd,str(display)]
+    sp=subprocess.Popen(['./display.sh',cmd,str(display)]
                         ,**kwargs)
     running_displays[display].append(sp)
     return sp
@@ -177,9 +193,10 @@ def stop(display,signal=signal.SIGINT):
     running_displays.pop(display)
     remove_zombies()
 
-	
+
 def kill_all():
-    """kills all display apps on the server forcefully"""
+    """kills all display apps on the server forcefully
+    ...that it knows about that is."""
     for ad in running_displays.keys():
         stop(ad,signal=signal.SIGKILL)
 

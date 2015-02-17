@@ -4,19 +4,59 @@ import tornado.ioloop
 import tornado.web
 import atexit
 #from time import sleep
-from random import getrandbits
+
+import display
+display.port2display_function=display.sequence #will make..
+#..use of the info that it's a sequence
+
+#https for the websockets?
+import uuid
+import display #for security the display connection..
+#...needs to be rerouted or proxied. you could just scan
+#the server and find an open port. also maybe can use
+#secure websocket wss. maybe a soln is to somehow intercept
+#the connection request before the broadway server gets it
+# and authenticate /that/ before passing on to the broadway
+#server. 
+#broadwayd has a unix port option. or maybe have broawayd
+#only listen on localhost while the incoming gets proxied
+#to it
+#also DisplahHandler could be https
+
+#if you know a running port you can connect a client. so
+#you could do a port scan. insecure.
+
+import tornado.httpserver
+hostname=tornado.httpserver.socket.gethostname()
+
+id2displaynum={} # remove id on ws close . this is here
+# incase the DisplayHandler gets garbage collected
+#todo could add a periodc callback to rem inactive displays
+#just in case
+
+display_handlers={} # id: display handlers
+
+
+#todo would be nice to add a logger
+
+#todo change title
+
+#for devel make the following times short and debug=True
 
 #user
-user_polltime= 0*3600 +0*60  +60  # seconds chks usr active
-user_responsetime= 10 #seconds response time given to usr
+user_polltime= 0*3600 +0*60  +10  # seconds chks usr active
+user_responsetime= 5 #seconds response time given to usr
 #system
-responsetime=5
+responsetime=3 #seconds. user should come back with a response
+#to the request within this time
 
 class alive(tornado.websocket.WebSocketHandler):
+    """this just tracks and makes sure the user is active...
+    because we need to stop the processes the start"""
     clients={} # id:this_instance . these are the the ids
     #..that were recd. not necessarily the one given on the
     #http request
-    def check_origin(self,origin):return True #for ver 4
+    def check_origin(self,origin): return True #for ver 4
 
     def closeif_noid(self):
         if self.id is None: self.close()
@@ -34,7 +74,7 @@ class alive(tornado.websocket.WebSocketHandler):
         if self.id is None: self.close()
 
     def on_message(self, message):
-        print(message)
+        #print(message)
         if 'REQ_ID='==message[:7]:
             self.id=message[7:] 
             self.clients[self.id]=self;
@@ -56,6 +96,7 @@ class alive(tornado.websocket.WebSocketHandler):
         if self.dueclose==True: self.close()
         
     def poll(self):
+        #print('poll')
         self.dueclose=True
         self.pt.stop()
         self.write_message(u"confirmcontinue")
@@ -72,45 +113,11 @@ class alive(tornado.websocket.WebSocketHandler):
         except: pass
         try: id2displaynum.pop(self.id)
         except: pass # warning: invalid reqid recvd or None
-        print("WebSocket closed2")
-
-apps={'boweb':  {'cmd':'python bo.py'},
-      'gedit': {'cmd':'gedit'}
-      }
-display_spec={
-            'gedit':{
-                'apps':['gedit']
-                ,'nicename':'gedit text editor'
-                }
-            , 'bo':{
-                'apps':['boweb']
-                ,'nicename':'bayesian optimization demo game'
-                }
-            ,'twoapps':{
-                'apps':['bo','gedit']
-                ,'nicename':'two apps at the same time'
-                }
-}
+        #print("WebSocket closed2")
 
 
-#https for the websockets?
-import uuid
-import display #for security the display connection..
-#...needs to be rerouted or proxied. you could just scan
-#the server and find an open port. also maybe can use
-#secure websocket wss
-#if you know a running port you can connect a client. so
-#you could do a port scan. insecure.
 
-import tornado.httpserver
-hostname=tornado.httpserver.socket.gethostname()
 
-id2displaynum={} # remove id on ws close . this is here
-# incase the DisplayHandler gets garbage collected
-#todo could add a periodc callback to rem inactive displays
-#just in case
-
-display_handlers={} # id: display handlers
 
 class DisplayHandler(tornado.web.RequestHandler):
     apps=[]
@@ -119,24 +126,29 @@ class DisplayHandler(tornado.web.RequestHandler):
     #same action should be done to display_handlers
     #i put a global_display handlers to make it possible to 
     #have different classes of DisplayHandlers. so if you just
-    #Know a reqid.. you wouldnt know which class of 
+    #know a reqid.. you wouldnt know which class of 
     #DisplayHandler it came from
     def prepare(self):
-        self.tryn=0
+        #self.tryn=0
         self.id=unicode(uuid.uuid4())
         self.clients[self.id]=self
         display_handlers[self.id]=self
-  
- 
-    def get(self):
-        #hacky but who cares..but see cant write a 'proper'
-        #callback b/c idk what id i'm going to get back
-        self.display_num,self.display_port=display.add() 
+
+    def start_apps(self):
+        #ideally this starts when an adequate reponse comes
+        #back..but then again the broadway server has to 
+        #be ready before the request comes in?
+        self.display_num, self.display_port = display.add() 
         #display.get_openport
         #problem: if browser didnt get back?
         #tst by corrupting html
-        display.app('python bo.py',self.display_num)
         id2displaynum[self.id]=self.display_num
+        for ap in self.apps:
+            display.app(apps[ap]['cmd'],self.display_num)
+
+    def get(self):
+        self.start_apps()
+
         hn=hostname
         #todo use tornado templates?
         self.html=open('broadway.html').read()\
@@ -169,29 +181,71 @@ class DisplayHandler(tornado.web.RequestHandler):
 
     def on_validid(self):pass
 
-    #todo remove display on break connecton
     
-    def on_finish(self):pass#i dont think this persists
-      
-#def make_DisplayHandler(display_spec):
-#    class dh(DisplayHandler
+    def on_finish(self):pass#i dont think the obj persists
 
-#def get_DisplayHandler(id, #
 
+
+apps={'bo':  {'cmd':'python bo.py'},
+      'gedit': {'cmd':'gedit'}
+      }
+display_specs={
+            'gedit':{#could have "kwargs":...
+                'apps':['gedit']
+                ,'title':'gedit text editor'
+                }
+            , 'bo':{
+                'apps':['bo']
+                ,'title':'bayesian optimization demo game'
+                }
+            ,'twoapps':{
+                'apps':['bo','gedit']
+                ,'title':'two apps at the same time'
+                }
+}
+
+
+def make_DisplayHandler(display_spec):
+    class dh(DisplayHandler): pass
+    for aspec in display_spec:
+        if aspec != 'kwargs':
+            setattr(dh, aspec, display_spec[aspec])
+    return dh
+
+dh_classes=dict(
+[(ads, make_DisplayHandler(display_specs[ads]))
+for ads in display_specs])
+
+
+
+from collections import defaultdict as dd
 application = tornado.web.Application([
     (r"/", DisplayHandler) 
-    ,(r'/wsalive',alive)
-]
+    ,(r'/wsalive',alive) ]
+   +[(r'/'+adhc, dh_classes[adhc]
+      , dd(lambda:{},display_specs[adhc])['kwargs'] )
+      # {} if no kwargs available  
+      for adhc in dh_classes]
+
 ,debug=True
 )
 
+#another check todo
+#since i'm just increasing the display number, remove any
+#process that has a number lower than the current lowest 
+#display number found in display
+
+
 def printstuff():
-    stuff=[id2displaynum
-	,display_handlers
-	,alive.clients
-	,DisplayHandler.clients
-	]
-    for at in stuff: print(at)
+    stuff={
+	 'displays': display.display2port
+     ,'id2displaynum':id2displaynum
+    ,'display_handlers':display_handlers
+    ,'alive.clients':alive.clients
+    ,'DisplayHandler.clients':DisplayHandler.clients
+    }
+    for at in stuff: print(at,stuff[at])
+    print("")
 
 atexit.register( display.kill_all )
 
@@ -199,6 +253,5 @@ if __name__ == "__main__":
     lp=8888
     application.listen(lp)
     iolp=tornado.ioloop.IOLoop.instance()
-    tornado.ioloop.PeriodicCallback(printstuff,2*1000)
+    tornado.ioloop.PeriodicCallback(printstuff,5*1000).start()
     iolp.start()
-    
