@@ -174,8 +174,8 @@ class DisplayHandler(tornado.web.RequestHandler):
         #if self.tryn>3: self.chkid.stop(); return
         if self.id not in alive.clients:
             display.stop(self.display_num);
+            id2displaynum.pop(self.id)
             #self.chkid.stop()
-            #id2displaynum.pop(self.id)
         else: # correct reqid came back
             #self.chkid.stop()
             self.clients.pop(self.id)
@@ -248,6 +248,10 @@ def printstuff():
     }
     for at in stuff: print(at,stuff[at])
     print("")
+#=
+
+# def housekeeper():
+    # for 
 
 atexit.register( display.kill_all )
 
