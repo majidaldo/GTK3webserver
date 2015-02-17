@@ -5,6 +5,7 @@ import tornado.web
 import atexit
 #from time import sleep
 
+#should have used more obj oriented approach
 
 import display
 display.port2display_function=display.sequence #might make ...

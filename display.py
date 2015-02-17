@@ -1,4 +1,5 @@
-#this could be in a repo on its own
+#this could be in a repo on its own should have used a 
+#obj oriented approach
 
 """manages GTK3 broadwayd displays
 .. and to minimize bash scripting ugggh
@@ -184,7 +185,7 @@ def stop(display,signal=signal.SIGKILL):#signal.SIGINT):
         p.wait()
     running_displays.pop(display)
     remove_zombie_apps()
-
+    
 
 def remove_zombie_apps():
     #the not immediate
@@ -200,16 +201,15 @@ def remove_zombie_apps():
         # ..will be removed by the garbage collector eventually
         except: pass
 
-
-def kill_zombie_displays(really=False):#=True makes a problem. idk Y
+def kill_zombie_displays(really=True):#seems to add robustness...
+    #stop it if it become a  problem
     if really is not True: return
     for ap in psutil.process_iter():
         try: cmdline = ap.cmdline[0]
         except: continue
         if cmdline == 'broadwayd':
-            print 'TTTTTT',cmdline, ap.cmdline[2]
             # index 2 is the port
-            if ap.cmdline[2] not in port2display: ap.kill()
+            if int(ap.cmdline[2]) not in port2display: ap.kill()
 
 
 def kill_all():
