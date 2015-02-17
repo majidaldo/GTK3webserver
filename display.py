@@ -12,13 +12,15 @@ you may want to set the limits after import
 >import display
 >display.DisplayLimit=10
 """
-
+import signal
 import os
 import atexit
 import subprocess
 from collections import defaultdict
 from time import sleep
 import socket
+
+import psutil # optionally used
 
 port2display={}
 display2port={}
@@ -98,7 +100,7 @@ running_displays=displaydict(list)
 #def add(port,block=True) not a good idea to specify a port
 def add(portgetter=get_openport
         ,block=True):#don't see a reason to not block
-    remove_zombies(); 
+    remove_zombie_apps(); kill_zombie_displays()
     if len(running_displays)==DisplayLimit.val:
         raise DisplayLimit(DisplayLimit.val)
     port=portgetter() #not safe. need to reserve port
@@ -139,18 +141,6 @@ def add(portgetter=get_openport
         raise Exception('display and port numbers are not 1-to-1')
     return display, port
 
-def remove_zombies():
-    #the not immediate
-    delthese=[]
-    for adisplay in running_displays:
-        for an,aproc in enumerate(running_displays[adisplay]):
-            if an==0:continue  #skip the broadway proc
-            if aproc.poll() is None: continue# running
-            else: delthese.append( (adisplay,an) )
-    for adisplay,an in delthese:
-        #in case empty list
-        try: running_displays[adisplay].pop(an)
-        except: pass
 
 #what happens when the app spawns a window or another proc?
 #on multiple gedits  only the first one is alive
@@ -158,7 +148,7 @@ def app(cmd,display,**kwargs):
     """runs a gtk3 prog on display. """
     if (display) not in running_displays:
         raise ValueError('display does not exist')
-    remove_zombies()
+    remove_zombie_apps()
     if (len(running_displays[display])-1)==ApplicationLimit.val:
         raise ApplicationLimit(ApplicationLimit.val)
     #kwargs['preexec_fn']=os.setpgid
@@ -179,8 +169,10 @@ def isport_openable(port):
     # if cr==0: return True
     # else: return cr
 
-import signal
-def stop(display,signal=signal.SIGINT):
+
+def stop(display,signal=signal.SIGKILL):#signal.SIGINT):
+    # when using this with the server.. can't rely on being nice
+    # so just kill it
     """stops display and everything running on it"""
     if display not in running_displays:
         raise KeyError('no display #'+str(display)+' to kill')
@@ -191,7 +183,33 @@ def stop(display,signal=signal.SIGINT):
         #p.kill()
         p.wait()
     running_displays.pop(display)
-    remove_zombies()
+    remove_zombie_apps()
+
+
+def remove_zombie_apps():
+    #the not immediate
+    delthese=[]
+    for adisplay in running_displays:
+        for an,aproc in enumerate(running_displays[adisplay]):
+            if an==0:continue  #skip the broadway proc
+            if aproc.poll() is None: continue# running
+            else: delthese.append( (adisplay,an) )
+    for adisplay,an in delthese:
+        #in case empty list
+        try: running_displays[adisplay].pop(an) #the process...
+        # ..will be removed by the garbage collector eventually
+        except: pass
+
+
+def kill_zombie_displays(really=False):#=True makes a problem. idk Y
+    if really is not True: return
+    for ap in psutil.process_iter():
+        try: cmdline = ap.cmdline[0]
+        except: continue
+        if cmdline == 'broadwayd':
+            print 'TTTTTT',cmdline, ap.cmdline[2]
+            # index 2 is the port
+            if ap.cmdline[2] not in port2display: ap.kill()
 
 
 def kill_all():

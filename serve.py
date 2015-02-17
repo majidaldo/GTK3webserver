@@ -5,8 +5,9 @@ import tornado.web
 import atexit
 #from time import sleep
 
+
 import display
-display.port2display_function=display.sequence #will make..
+display.port2display_function=display.sequence #might make ...
 #..use of the info that it's a sequence
 
 #https for the websockets?
@@ -44,10 +45,10 @@ display_handlers={} # id: display handlers
 #for devel make the following times short and debug=True
 
 #user
-user_polltime= 0*3600 +0*60  +10  # seconds chks usr active
-user_responsetime= 5 #seconds response time given to usr
+user_polltime= 0*3600 +0*60  +60  # seconds chks usr active
+user_responsetime= 10 #seconds response time given to usr
 #system
-responsetime=3 #seconds. user should come back with a response
+responsetime=5 #seconds. user should come back with a response
 #to the request within this time
 
 class alive(tornado.websocket.WebSocketHandler):
@@ -179,7 +180,7 @@ class DisplayHandler(tornado.web.RequestHandler):
             self.clients.pop(self.id)
             display_handlers.pop(self.id)
 
-    def on_validid(self):pass
+    #def on_validid(self):pass 
 
     
     def on_finish(self):pass#i dont think the obj persists
@@ -231,9 +232,9 @@ application = tornado.web.Application([
 )
 
 #another check todo
-#since i'm just increasing the display number, remove any
-#process that has a number lower than the current lowest 
-#display number found in display
+#peridically. it seems alive.clients is the best registration
+#so just take out all display handlers not in alive.clients
+#..the stuff in prinstuff
 
 
 def printstuff():
