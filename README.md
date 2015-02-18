@@ -4,7 +4,7 @@ this code serves up any gtk3 app through a browser (but it started as a way to w
 you'll need:
 * tornado
 * pygobject
-* gobject (python-gi and glade on apt-get)
+* gobject (python-gi)
 * psutl
 * gtk3 of course with the broadwayd display backend
 * [this](https://github.com/matplotlib/matplotlib/pull/4093) change if you want to display gtk3-backended matplotlib
