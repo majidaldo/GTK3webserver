@@ -44,7 +44,19 @@ def get_openport():
     s.bind(('',0))
     return s.getsockname()[1]
 
+def webports(startport=8001):
+    tries= 10 ; 
+    for ti in xrange(tries):
+        for pi in xrange(startport, startport+DisplayLimit.val):#assuming...
+            #ports are reserved for this app.
+			#also remember isportsopenable.. if it can open it
+			#then it's available. might be confusing a bit
+            if isport_openable(pi) is False: return pi
+        sleep(.1) #ideally this shouldnt be here but i'm....
+        #...just trying to get something to work
 
+
+        
 class sequenceg(): #should have used a generator but cool to...
     #..hack classes
     dc=0
@@ -71,8 +83,8 @@ def display_is_port(port):
 
 #port2display_function
 p2df=sequence
-port2display_function=p2df #don't use the port2dispaly_func ...
-#... in the code
+port2display_function=p2df #don't use  port2dispaly_func ...
+#... name in the code
 
 #display_is_port#friendly_display# 
 # class keydefaultdict(defaultdict):

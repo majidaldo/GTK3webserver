@@ -1,0 +1,1 @@
+docker run gtk3svr -d -p 8000 -p 8001 -p 8002 -p 8001 -p 8003 -p 8004 -p 8005 -p 8006 -p 8007 -p 8008 -p 8009 -p 8010  /usr/bin/python /root/GTK3webserver/serve.py 

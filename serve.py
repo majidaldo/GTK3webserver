@@ -60,7 +60,7 @@ class alive(tornado.websocket.WebSocketHandler):
     clients={} # id:this_instance . these are the the ids
     #..that were recd. not necessarily the one given on the
     #http request
-    def check_origin(self,origin): return True #for ver 4
+    def check_origin(self,origin): return True #for tornado v4
 
     def open(self):
         self.id=None 
@@ -148,7 +148,9 @@ class DisplayHandler(tornado.web.RequestHandler):
         #ideally this starts when an adequate reponse comes
         #back..but then again the broadway server has to 
         #be ready before the request comes in?
-        self.display_num, self.display_port = display.add() 
+        #todo: should handle exceptions here
+        self.display_num, self.display_port = \
+                display.add(portgetter=display.webports) 
         #display.get_openport
         #problem: if browser didnt get back?
         #tst by corrupting html
@@ -225,22 +227,16 @@ def make_DisplayHandler(display_spec):
 
 
 
-apps={'bo':  {'cmd':'python bo.py'},
-      'gedit': {'cmd':'gedit'}
+apps={'bo':  {'cmd':'/usr/bin/python bo.py'}
+
       }
 display_specs={
-            'gedit':{#could have "kwargs":...
-                'apps':['gedit']
-                ,'title':'gedit text editor'
-                }
-            , 'bo':{
+
+            'bo':{
                 'apps':['bo']
                 ,'title':'bayesian optimization demo game'
                 }
-            ,'twoapps':{
-                'apps':['bo','gedit']
-                ,'title':'two apps at the same time'
-                }
+
 }
 
 dh_classes=dict(
@@ -267,13 +263,13 @@ def printstuff():
 atexit.register( display.kill_all )
 
 if __name__ == "__main__":
-    lp=8888 #listening port
-    debug=True
+    lp=8000 #listening port
+    debug=False
 
     from collections import defaultdict as dd
     application = tornado.web.Application([
-        (r"/", DisplayHandler) 
-        ,(r'/wsalive',alive) ]
+        #(r"/", DisplayHandler) ,
+        (r'/wsalive',alive) ]
        +[(r'/'+adhc, dh_classes[adhc]
           , dd(lambda:{},display_specs[adhc])['kwargs'] )
           # {} if no kwargs available  
