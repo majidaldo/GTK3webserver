@@ -9,3 +9,6 @@ you'll need:
 * psutl
 * gtk3 of course with the broadwayd display backend
 * [this](https://github.com/matplotlib/matplotlib/pull/4093) change if you want to display gtk3-backended matplotlib
+
+random notes:
+* need to chmod +x the start_display.sh and display.sh
