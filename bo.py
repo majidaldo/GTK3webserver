@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib
 matplotlib.rcParams['toolbar'] = 'None'
 matplotlib.rcParams['figure.figsize'] = 14, 5
-matplotlib.use("GTK3Agg")
+matplotlib.use("GTK3Cairo")
 import matplotlib.pyplot as pl
 
 pl.ion()#ioff()#.ion()
