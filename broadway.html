@@ -2673,28 +2673,27 @@ function login()
     }
 }
 
-//url = 'http://localhost:8080/'// url with ending  slash
-url=$BROADWAY_SERVER ; //got an ending slash in the prog
 
 function connect()
 {
     //var url = "http://localhost:8002/";//need that last slash
-	///window.location.toString();
+    var url= window.location.toString();
     var query_string = url.split("?");
     if (query_string.length > 1) {
 	var params = query_string[1].split("&");
     }
      
-    //var loc = window.location.toString()
-	var loc = url.replace("http:", "ws:").replace("https:", "wss:");
-    loc = loc.substr(0, loc.lastIndexOf('/')) + "/socket";
+    var bwloc = window.location.toString()
+    bwloc = bwloc.substr( 0, bwloc.lastIndexOf(':'))+':$BW_PORT/'
+    bwloc = bwloc.replace("http:", "ws:").replace("https:", "wss:");
+    bwloc = bwloc.substr(0, bwloc.lastIndexOf('/')) + "/socket";
 
-    var supports_binary = newWS (loc + "-test").binaryType == "blob";
+    var supports_binary = newWS (bwloc + "-test").binaryType == "blob";
     if (supports_binary) {
-	ws = newWS (loc + "-bin");
+	ws = newWS (bwloc + "-bin");
 	ws.binaryType = "arraybuffer";
     } else {
-	ws = newWS (loc);
+	ws = newWS (bwloc);
     }
 
     ws.onopen = function() {
@@ -2709,7 +2708,10 @@ function connect()
 	handleMessage(event.data);
     };
 	
-	var wsalive = new WebSocket(loc.substr(0, loc.lastIndexOf(':')) + ":$APP_PRT/wsalive");
+
+    var loc = url.replace("http:", "ws:").replace("https:", "wss:");
+    loc = loc.substr(0, loc.lastIndexOf('/')) + "/wsalive";     
+	var wsalive = new WebSocket( loc );
 	
 	wsalive.onopen = function() {
 	wsalive.send("REQ_ID=$REQ_ID")

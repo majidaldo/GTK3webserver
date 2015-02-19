@@ -164,10 +164,8 @@ class DisplayHandler(tornado.web.RequestHandler):
         hn=hostname
         #todo use tornado templates?
         self.html=open('broadway.html').read()\
-                 .replace('$BROADWAY_SERVER'
-                 ,"'http://"+hn+':'+str(self.display_port)+"/'")\
                 .replace('$REQ_ID',str(self.id))\
-                .replace('$APP_PRT',str(lp)) #wasteful
+                .replace('$BW_PORT',str(self.display_port))
                  #todo replace response time
                  # makint the timer for reset btn
                  #title
