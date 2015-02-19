@@ -262,7 +262,7 @@ atexit.register( display.kill_all )
 
 if __name__ == "__main__":
     lp=8000 #listening port
-    debug=True
+    debug=False
 
     from collections import defaultdict as dd
     application = tornado.web.Application([
