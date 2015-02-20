@@ -1,1 +1,1 @@
-docker run -d -p 8000:8000 -p 8001:8001 -p 8002:8002 -p 8003:8003 -p 8004:8004 -p 8005:8005 -p 8006:8006 -p 8007:8007 -p 8008:8008 -p 8009:8009 -p 8010:8010  boweb /usr/bin/python /root/GTK3webserver/serve.py 
+docker run -d -p 8000:8000 -p 8001:8001 -p 8002:8002 -p 8003:8003 -p 8004:8004 -p 8005:8005 -p 8006:8006 -p 8007:8007 -p 8008:8008 -p 8009:8009 -p 8010:8010  boweb /root/GTK3webserver/start.sh 
