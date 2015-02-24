@@ -1,5 +1,6 @@
 # GTK3 Applications Served on the Web
 this code serves up any gtk3 app through a browser (but it started as a way to webhost my interactive matplotlib demo).
+http://msdresearch.blogspot.com/2015/02/serving-gtk3-applications-on-web.html
 
 you'll need:
 * tornado
