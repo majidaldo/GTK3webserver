@@ -12,4 +12,5 @@ you'll need:
 * [this](https://github.com/matplotlib/matplotlib/pull/4093) change if you want to display gtk3-backended matplotlib
 
 random notes:
+* boweb is latest source but i'm too lazy to merge it back to the master
 * need to chmod +x the start_display.sh and display.sh
